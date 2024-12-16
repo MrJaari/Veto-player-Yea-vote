@@ -6,7 +6,6 @@ library(stargazer)
 
 dpi.data <- read_xlsx("insert path here")
 un.vote <- read.csv("insert path here")
-ideal.point <- read.csv("insert path here")
 
 
 name.I <- unique(dpi.data$ifs)
