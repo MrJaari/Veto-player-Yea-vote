@@ -1,0 +1,214 @@
+library(tidyverse)
+library(haven)
+library(readxl)
+library(stargazer)
+
+
+dpi.data <- read_xlsx("insert path here")
+un.vote <- read.csv("insert path here")
+ideal.point <- read.csv("insert path here")
+
+
+name.I <- unique(dpi.data$ifs)
+name.II <- unique(un.vote$Country)
+name.II.p <- name.II[199:390]
+name.II.r <-{ c("AFG", "ALB", "DZA", "AND", "AGO", "ATG", "ARG", "ARM", "AUS",
+                "AUT", "AZE", "BHS", "BHR", "BGD", "BRB", "BLR", "BEL", "BLZ",
+                "BEN", "BTN", "BOL", "BIH", "BWA", "BRA", "BRN", "BGR", "BFA",
+                "BDI", "CPV", "KHM", "CMR", "CAN", "CAF", "TCD", "CHL", "CHN",
+                "COL", "COM", "COG", "CRI", "CIV", "HRV", "CUB", "CYP", "CZE",
+                "PRK", "COD", "DNK", "DJI", "DMA", "DOM", "ECU", "EGY", "SLV",
+                "GNQ", "ERI", "EST", "SWZ", "ETH", "FJI", "FIN", "FRA", "GAB",
+                "GMB", "GEO", "DEU", "GHA", "GRC", "GRD", "GTM", "GIN", "GNB",
+                "GUY", "HTI", "HND", "HUN", "ISL", "IND", "IDN", "IRN", "IRQ",
+                "IRL", "ISR", "ITA", "JAM", "JPN", "JOR", "KAZ", "KEN", "KIR",
+                "KWT", "KGZ", "LAO", "LVA", "LBN", "LSO", "LBR", "LBY", "LIE", 
+                "LTU", "LUX", "MDG", "MWI", "MYS", "MDV", "MLI", "MLT", "MHL",
+                "MRT", "MUS", "MEX", "FSM", "MCO", "MNG", "MNE", "MAR", "MOZ",
+                "MMR", "NAM", "NRU", "NPL", "NLD", "NZL", "NIC", "NER", "NGA",
+                "MKD", "NOR", "OMN", "PAK", "PLW", "PAN", "PNG", "PRY", "PER",
+                "PHL", "POL", "PRT", "QAT", "KOR", "MDA", "ROU", "RUS", "RWA", 
+                "KNA", "LCA", "VCT", "WSM", "SMR", "STP", "SAU", "SEN", "SYC",
+                "SLE", "SGP", "SVK", "SVN", "SLB", "SOM", "ZAF", "SSD", "ESP",
+                "LKA", "SDN", "SUR", "SWE", "CHE", "SYR", "TJK", "THA", "TLS",
+                "TGO", "TON", "TTO", "TUN", "TUR", "TKM", "TUV", "UGA", "UKR",
+                "ARE", "GBR", "TZA", "USA", "URY", "UZB", "VUT", "VEN", "VNM",
+                "YEM", "ZMB", "ZWE")
+}
+
+for(i in 1:length(name.II.p)){
+  pos <- which(un.vote$Country %in% name.II.p[i])
+  un.vote$Country[pos] <- name.II.r[i]
+}
+
+name.IV <- unique(un.vote$Country)
+name.I.p <- setdiff(name.I, name.IV)
+name.I.r <- c("0", "ROU", "SWZ", "RUS", "TLS", "YEM", NA, "COD")
+
+for(i in 1:length(name.I.p)){
+  pos <- which(dpi.data$ifs %in% name.I.p[i])
+  dpi.data$ifs[pos] <- name.I.r[i]
+}
+
+name.VI <- unique(dpi.data$ifs)
+
+un.vote <- un.vote %>%
+  filter(year >= 1975, year <= 2020, Country %in% name.VI, vote %in% c(1,2,3))
+
+dpi.data$year <- lapply(dpi.data$year, function(x) substring(x,1,4))
+dpi.data$year <- as.numeric(dpi.data$year)
+
+country.I <- unique(un.vote$Country)
+year.I <- unique(un.vote$year)
+
+num.rows <- length(country.I)*length(year.I)
+vector.I <- vector(length = num.rows)
+
+un.mv <- data.frame(prop.yes = vector.I, country = vector.I, year = vector.I)
+
+
+for(i in 1:length(country.I)){
+  pos.I <- which(un.vote$Country %in% country.I[i])
+  for(j in 1:length(year.I)){
+    pos.II <- which(un.vote$year %in% year.I[j])
+    pos.III <- intersect(pos.I, pos.II) 
+    p.yes <- sum(un.vote$vote[pos.III] == 1)/length(pos.III)
+    un.mv$prop.yes[((i-1)*length(year.I))+j] <- p.yes
+    un.mv$country[((i-1)*length(year.I))+j] <- country.I[i]
+    un.mv$year[((i-1)*length(year.I))+j] <- year.I[j]
+  }
+}
+
+vps <- rep(NA, nrow(un.mv))
+
+for(i in 1:nrow(un.mv)){
+  country <- un.mv$country[i]
+  year <- un.mv$year[i]
+  pos.I <- which(dpi.data$ifs == country)
+  pos.II <- which(dpi.data$year == year)
+  pos.III <- intersect(pos.I, pos.II)
+  if(length(pos.III)==1) un.mv$vps[i] <- dpi.data$checks[pos.III]
+}
+
+for(i in 1:nrow(un.mv)){
+  if(F == grepl("[0-9]", un.mv$vps[i])) un.mv$vps[i] <- NA
+}
+
+un.mv$vps <- as.numeric(un.mv$vps)
+un.mv.clean <- un.mv[!is.na(un.mv$vps) & !is.na(un.mv$prop.yes),]
+
+gdp.pop <- read.csv("C:\\Users\\hagei\\Desktop\\Rdata\\P_Population and GDP by Country (1)\\ba1e875b-8f52-4c2e-9b17-b6504b8c9020_Data.csv")
+gdp.pop <- gdp.pop %>%
+  filter(Time >= 1975, Time <= 2020, Country.Code %in% name.VI) %>%
+  rename(country = Country.Code, year = Time,
+         GDP = GDP..current.US....NY.GDP.MKTP.CD., POP = Population..total..SP.POP.TOTL.)
+
+gdp <- rep(NA, nrow(un.mv.clean))
+pop <- rep(NA, nrow(un.mv.clean))
+
+for(i in 1:nrow(un.mv.clean)){
+  country <- un.mv.clean$country[i]
+  year <- un.mv.clean$year[i]
+  pos.I <- which(gdp.pop$country == country)
+  pos.II <- which(gdp.pop$year == year)
+  pos.III <- intersect(pos.I, pos.II)
+  if (length(pos.III) > 0){
+    un.mv.clean$pop[i] <- gdp.pop$POP[pos.III]
+    un.mv.clean$gdp[i] <- gdp.pop$GDP[pos.III]
+  } else { 
+    un.mv.clean$pop[i] <- NA
+    un.mv.clean$gdp[i] <- NA
+  }
+}
+
+un.mv.clean$gdp <- as.numeric(un.mv.clean$gdp)
+un.mv.clean$pop <- as.numeric(un.mv.clean$pop)
+
+loggdp <- rep(NA, nrow(un.mv.clean))
+logpop <- rep(NA, nrow(un.mv.clean))
+
+for(i in 1:nrow(un.mv.clean)){
+  if(is.na(un.mv.clean$gdp[i]))
+    un.mv.clean$loggdp[i] <- NA
+  else un.mv.clean$loggdp[i] <- log(un.mv.clean$gdp[i])
+  
+  if(is.na(un.mv.clean$pop[i]))
+    un.mv.clean$logpop[i] <- NA
+  else un.mv.clean$logpop[i] <- log((un.mv.clean$pop[i]))
+}
+
+nato <- vector(length = nrow(un.mv.clean))
+
+for(i in 1:nrow(un.mv.clean)){
+  if(un.mv.clean$country[i] %in% c("BEL", "CAN", "DNK", "FRA", "ISL", "ITA",
+                                   "LUX", "NLD", "NOR", "PRT", "GBR", "USA",
+                                   "GRC", "TUR", "DEU") | 
+     (un.mv.clean$country[i] == "ESP" & un.mv.clean$year[i] > 1981) |
+     (un.mv.clean$country[i] %in% c("POL", "CZE", "HUN") & un.mv.clean$year[i] > 1998) |
+     (un.mv.clean$country[i] %in% c("BGR", "EST", "LVA", "LTU", "ROU", "SVK",
+                                    "SVN") & un.mv.clean$year[i] > 2003) |
+     (un.mv.clean$country[i] %in% c("ALB", "HRV") & un.mv.clean$year[i] > 2008) |
+     (un.mv.clean$country[i] == "MNE" & un.mv.clean$year[i] > 2016) |
+     (un.mv.clean$country[i] == "MKD" & un.mv.clean$year[i] > 2019)) {
+    un.mv.clean$nato[i] <- 1 
+  } else {
+    un.mv.clean$nato[i] <- 0
+  }
+}
+
+
+m1 <- lm(prop.yes~vps, data = un.mv.clean)
+m2 <- lm(prop.yes~vps+logpop+loggdp, data = un.mv.clean)
+m3 <- lm(prop.yes~vps+logpop+loggdp+nato, data = un.mv.clean)
+
+stargazer(m1, m2, m3, type = "html", out = "model_summary.html",
+          summary = T, omit.stat = c("AIC", "adj.rsq"),
+          covariate.labels = c("Veto players", "Log-population", "Log-GDP",
+                               "Nato membership", "Constant"),
+          ci = F, dep.var.labels = "Proportion of yea-vote")
+
+vector.II <- vector(length=length(unique(un.mv.clean$country)))
+
+df.con <- data.frame(country = unique(un.mv.clean$country), mean.vps = vector.II,
+                     mean.yes = vector.II)
+
+for(i in 1:nrow(df.con)){
+  country <- df.con$country[i]
+  pos.I <- which(un.mv.clean$country %in% country)
+  df.con$mean.yes[i] <- sum(un.mv.clean$prop.yes[pos.I])/length(pos.I)
+  df.con$mean.vps[i] <- sum(un.mv.clean$vps[pos.I])/length(pos.I)
+}
+
+ggplot(df.con, aes(x=mean.vps, y = mean.yes, label = country))+
+  geom_text(alpha = 0.5, col = "cadetblue", size = 8)+
+  labs(title = "Mean country values",
+       x = "Mean amount of Veto players",
+       y = "Mean propotion of yes votes")+
+  ggthemes::theme_clean()+
+  theme(
+    plot.title = element_text(size = 20, face = "bold"),
+    axis.title.x = element_text(size = 16),
+    axis.title.y = element_text(size = 16) 
+  )
+
+
+ggplot(un.mv.clean)+
+  geom_density(aes(x = prop.yes), fill = "cadetblue", alpha = 0.5)+
+  labs(x = "Proportion of yea votes",
+       y = "Density")+
+  ggthemes::theme_clean()+
+  theme(
+    plot.title = element_text(size = 20, face = "bold"),
+    axis.title.x = element_text(size = 24),
+    axis.title.y = element_text(size = 24) 
+  )
+
+ggplot(un.mv.clean, aes(x = vps)) + 
+  geom_histogram(fill = "cadetblue", color = "black", alpha = 0.7, binwidth = 1) +
+  scale_y_continuous(
+    trans = "log10", 
+    breaks = scales::trans_breaks("log10", function(x) 10^x),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+  labs(x = "Amount of veto player",
+       y = "Count on log10-scale")+
+  ggthemes::theme_clean()
